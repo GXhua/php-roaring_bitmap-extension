@@ -1,17 +1,14 @@
 <?php
-$br = (php_sapi_name() == "cli")? "":"<br>";
+$roaring = new roaring_bitmap64;
 
-if(!extension_loaded('roaring_bitmap')) {
-	dl('roaring_bitmap.' . PHP_SHLIB_SUFFIX);
-}
-$module = 'roaring_bitmap';
-$functions = get_extension_funcs($module);
-echo "Functions available in the test extension:$br\n";
-if(!empty($functions)){
-	foreach($functions as $func) {
-	    echo $func."$br\n";
-	}
-}
-echo "$br\n";
+$i=100000;
 
+
+//$roaring->add(1141364700);
+//$roaring->add(1141364799);
+//$roaring->add(1141364798);
+
+//$roaring->add(3241364798);
+
+var_dump($roaring->equalorLargerFirst(1141364700));
 ?>

@@ -2349,7 +2349,7 @@ PHP_METHOD(roaring_bitmap64, toArray)
             add_next_index_long(return_value, *it);
         }
         */
-        uint64_t num = intern->roaring->cardinality();
+        uint64_t num = intern->roaring->cardinality();//xinhua
         uint64_t* vals = (uint64_t*)malloc(sizeof(uint64_t) * num);
         if(vals == NULL){
             RETURN_NULL();
@@ -2549,6 +2549,36 @@ PHP_METHOD(roaring_bitmap64, runOptimize)
 
     RETURN_NULL();
 }
+
+
+/*
+ * 获取大于等于 start的第一个数
+ */
+PHP_METHOD(roaring_bitmap64, equalorLargerFirst)
+{
+    char *range_start = NULL;
+    size_t range_start_len;
+    uint64_t start;
+
+    zval *zobj = getThis();
+    roaring_bitmap64_object *intern;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+    Z_PARAM_STRING(range_start, range_start_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    
+    start = strtoull(range_start, NULL, 0);
+
+    intern = Z_TSTOBJ64_P(zobj);
+    if (intern != NULL)
+    {
+        RETURN_LONG(intern->roaring->largefirst(start));
+    }
+
+    RETURN_LONG(0);
+
+}
+
 /* }}} */
 
 /* {{{ proto long roaring_bitmap64::shrinkToFit()
@@ -2724,6 +2754,8 @@ const zend_function_entry roaring_bitmap64_functions[] = {
     PHP_ME(roaring_bitmap64, removeRunCompression,  NULL, ZEND_ACC_PUBLIC)
     PHP_ME(roaring_bitmap64, runOptimize,  NULL, ZEND_ACC_PUBLIC)
     PHP_ME(roaring_bitmap64, shrinkToFit,  NULL, ZEND_ACC_PUBLIC)
+//    PHP_ME(roaring_bitmap64, equalorLarger,  NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(roaring_bitmap64, equalorLargerFirst,  NULL, ZEND_ACC_PUBLIC)
     PHP_FE_END  /* Must be the last line in roaring_bitmap64_functions[] */
 };
 /* }}} */

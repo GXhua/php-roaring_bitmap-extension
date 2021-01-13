@@ -306,6 +306,19 @@ enum { ARRAY_DEFAULT_INIT_SIZE = 0 };
 #include <stdint.h>
 
 
+static inline void* sw_malloc(size_t size){
+  printf("size %d\n",size);return malloc(size);
+}
+
+static inline void* sw_realloc(void*old,size_t size){
+  printf("size %d\n",size);return realloc(old,size);
+}
+
+//#define malloc sw_malloc
+
+
+
+
 /*
  *  Good old binary search.
  *  Assumes that array is sorted, has logarithmic complexity.
@@ -1482,7 +1495,7 @@ static inline int array_container_try_add(array_container_t *arr, uint16_t value
         return 0;
     } else if (cardinality < max_cardinality) {
         if (array_container_full(arr)) {
-            array_container_grow(arr, arr->capacity + 1, true);
+            array_container_grow(arr, arr->capacity + 1, true);//2倍增长
         }
         const int32_t insert_idx = -loc - 1;
         memmove(arr->array + insert_idx + 1, arr->array + insert_idx,
@@ -1664,7 +1677,7 @@ static inline void array_container_remove_range(array_container_t *array,
 #endif
 
 enum {
-    BITSET_CONTAINER_SIZE_IN_WORDS = (1 << 16) / 64,
+    BITSET_CONTAINER_SIZE_IN_WORDS = (1 << 16) / 64,//1024
     BITSET_UNKNOWN_CARDINALITY = -1
 };
 
@@ -4062,24 +4075,24 @@ static inline int container_to_uint32_array(uint32_t *output,
  * Add a value to a container, requires a  typecode, fills in new_typecode and
  * return (possibly different) container.
  * This function may allocate a new container, and caller is responsible for
- * memory deallocation
+ * memory deallocation xinhua add
  */
 static inline void *container_add(void *container, uint16_t val,
                                   uint8_t typecode, uint8_t *new_typecode) {
     container = get_writable_copy_if_shared(container, &typecode);
     switch (typecode) {
         case BITSET_CONTAINER_TYPE_CODE:
-            bitset_container_set((bitset_container_t *)container, val);
+            bitset_container_set((bitset_container_t *)container, val);//bitmap container 直接塞入
             *new_typecode = BITSET_CONTAINER_TYPE_CODE;
             return container;
         case ARRAY_CONTAINER_TYPE_CODE: {
             array_container_t *ac = (array_container_t *)container;
-            if (array_container_try_add(ac, val, DEFAULT_MAX_SIZE) != -1) {
+            if (array_container_try_add(ac, val, DEFAULT_MAX_SIZE) != -1) {//二分查找对应的slot 然后插进去,大于4096个slot返回失败 转为bitmap container
                 *new_typecode = ARRAY_CONTAINER_TYPE_CODE;
                 return ac;
             } else {
-                bitset_container_t* bitset = bitset_container_from_array(ac);
-                bitset_container_add(bitset, val);
+                bitset_container_t* bitset = bitset_container_from_array(ac);//创建bitmap container 然后把原来的array container的值塞进去
+                bitset_container_add(bitset, val);//塞入当前val值
                 *new_typecode = BITSET_CONTAINER_TYPE_CODE;
                 return bitset;
             }
@@ -6771,6 +6784,27 @@ inline bool roaring_bitmap_contains(const roaring_bitmap_t *r, uint32_t val) {
     // rest might be a tad expensive, possibly involving another round of binary search
     return container_contains(container, val & 0xFFFF, typecode);
 }
+
+
+///**
+// * hack 返回第一个大于val的数
+// */
+//inline uint32_t roaring_bitmap_largefirst_val(const roaring_bitmap_t *r, uint32_t val) {
+//    const uint16_t hb = val >> 16;
+//    /*
+//     * the next function call involves a binary search and lots of branching.
+//     */
+//    int32_t i = ra_get_index(&r->high_low_container, hb);
+//    if (i < 0) return 0;
+//
+//    uint8_t typecode;
+//    // next call ought to be cheap
+//    void *container =
+//        ra_get_container_at_index(&r->high_low_container, i, &typecode);
+//    // rest might be a tad expensive, possibly involving another round of binary search
+//    return container_contains(container, val & 0xFFFF, typecode);
+//}
+
 
 /**
  * Check whether a range of values from range_start (included) to range_end (excluded) is present

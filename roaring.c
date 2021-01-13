@@ -2994,7 +2994,6 @@ void array_container_grow(array_container_t *container, int32_t min,
 
     int32_t max = (min <= DEFAULT_MAX_SIZE ? DEFAULT_MAX_SIZE : 65536);
     int32_t new_capacity = clamp(grow_capacity(container->capacity), min, max);
-
     container->capacity = new_capacity;
     uint16_t *array = container->array;
 
@@ -3414,14 +3413,14 @@ void bitset_container_set_all(bitset_container_t *bitset) {
 /* Create a new bitset. Return NULL in case of failure. */
 bitset_container_t *bitset_container_create(void) {
     bitset_container_t *bitset =
-        (bitset_container_t *)malloc(sizeof(bitset_container_t));
+        (bitset_container_t *)malloc(sizeof(bitset_container_t));//malloc 16Byte
 
     if (!bitset) {
         return NULL;
     }
     // sizeof(__m256i) == 32
     bitset->array = (uint64_t *)aligned_malloc(
-        32, sizeof(uint64_t) * BITSET_CONTAINER_SIZE_IN_WORDS);
+        32, sizeof(uint64_t) * BITSET_CONTAINER_SIZE_IN_WORDS);//malloc 8kByte
     if (!bitset->array) {
         free(bitset);
         return NULL;
@@ -4368,6 +4367,7 @@ extern inline void *container_andnot(const void *c1, uint8_t type1, const void *
 
 // file contains grubby stuff that must know impl. details of all container
 // types.
+//获取array container所有val 插入bit container
 bitset_container_t *bitset_container_from_array(const array_container_t *a) {
     bitset_container_t *ans = bitset_container_create();
     int limit = array_container_cardinality(a);
@@ -7921,29 +7921,29 @@ void roaring_bitmap_clear(roaring_bitmap_t *r) {
   ra_reset(&r->high_low_container);
 }
 
-void roaring_bitmap_add(roaring_bitmap_t *r, uint32_t val) {
+void roaring_bitmap_add(roaring_bitmap_t *r, uint32_t val) {//xinhua add
     const uint16_t hb = val >> 16;
-    const int i = ra_get_index(&r->high_low_container, hb);
+    const int i = ra_get_index(&r->high_low_container, hb);//找bucket的id
     uint8_t typecode;
     if (i >= 0) {
         ra_unshare_container_at_index(&r->high_low_container, i);
         void *container =
-            ra_get_container_at_index(&r->high_low_container, i, &typecode);
+            ra_get_container_at_index(&r->high_low_container, i, &typecode);//找到container
         uint8_t newtypecode = typecode;
         void *container2 =
-            container_add(container, val & 0xFFFF, typecode, &newtypecode);
-        if (container2 != container) {
+            container_add(container, val & 0xFFFF, typecode, &newtypecode);//添加数据
+        if (container2 != container) {//不相等，发生了container转换
             container_free(container, typecode);
             ra_set_container_at_index(&r->high_low_container, i, container2,
                                       newtypecode);
         }
-    } else {
+    } else {//新建一个array container
         array_container_t *newac = array_container_create();
         void *container = container_add(newac, val & 0xFFFF,
                                         ARRAY_CONTAINER_TYPE_CODE, &typecode);
         // we could just assume that it stays an array container
         ra_insert_new_key_value_at(&r->high_low_container, -i - 1, hb,
-                                   container, typecode);
+                                   container, typecode);//插到bucket
     }
 }
 
@@ -10843,7 +10843,7 @@ int32_t ra_advance_until_freeing(roaring_array_t *ra, uint16_t x, int32_t pos) {
 
 void ra_insert_new_key_value_at(roaring_array_t *ra, int32_t i, uint16_t key,
                                 void *container, uint8_t typecode) {
-    extend_array(ra, 1);
+    extend_array(ra, 1);//扩容bucket
     // May be an optimization opportunity with DIY memmove
     memmove(&(ra->keys[i + 1]), &(ra->keys[i]),
             sizeof(uint16_t) * (ra->size - i));

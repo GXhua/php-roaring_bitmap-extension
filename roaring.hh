@@ -150,6 +150,27 @@ class Roaring {
     bool containsRange(const uint64_t x, const uint64_t y) const {
         return roaring_bitmap_contains_range(&roaring, x, y);
     }
+    
+/*
+   * 获取大于x的第一个数
+   */
+  uint32_t largerfirst(const uint32_t x) const
+  {
+
+    roaring_uint32_iterator_t iterator;
+    roaring_init_iterator(&roaring, &iterator);
+    roaring_move_uint32_iterator_equalorlarger(&iterator, x);
+    if (iterator.has_value)
+    {
+      return iterator.current_value;
+    }
+    return 0;
+    //                while (iterator.has_value && UInt32(iterator.current_value) < range_end)                                              
+    //                {                                                                                                                     
+    //                    roaring_advance_uint32_iterator(&iterator);                                                                       
+    //                    ++count;                                                                                                          
+    //                }            
+  }
 
     /**
      * Destructor
@@ -803,7 +824,7 @@ class Roaring64Map {
         roarings[0].setCopyOnWrite(copyOnWrite);
     }
     void add(uint64_t x) {
-        roarings[highBytes(x)].add(lowBytes(x));
+        roarings[highBytes(x)].add(lowBytes(x));//xinhua 高32位直接数组index? 假设大于40亿的是少数情况？
         roarings[highBytes(x)].setCopyOnWrite(copyOnWrite);
     }
 
@@ -1262,6 +1283,23 @@ class Roaring64Map {
         }
         return result;
     }
+    
+ /*
+  *hack 获取第一个比x大的数(闭区间) 其中高32位等于x的高32位，低32位大于等于x的低32位
+ */
+  uint64_t largefirst(uint64_t x) const
+  {
+    //    auto roaring_destination = roarings.find(highBytes(x));
+    //    auto roaring_destination = roarings.at(highBytes(x)).largerfirst(lowBytes(x));
+    if (roarings.count(highBytes(x)) == 0)
+    {
+      return 0;
+    }
+
+    uint32_t lowVal = roarings.at(highBytes(x)).largerfirst(lowBytes(x));
+    return uniteBytes(highBytes(x), lowVal);
+
+  }
 
     /**
      * write a bitmap to a char buffer. This is meant to be compatible with
